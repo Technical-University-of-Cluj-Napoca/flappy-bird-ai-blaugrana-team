@@ -1,39 +1,33 @@
 import pygame, sys, random
 
+# --- TODO: Import AI classes ---
+# from neural_network import NeuralNetwork
+# from genetic_algorithm import EvolutionManager
+
 class Bird:
     def __init__(self, sound_dict):
-        # Save sound for later use
         self.flap_sound = sound_dict['flap']
-        
-        # Animation variables
         self.frame_index = 0
         self.frames = []
         self.image = None
-        
-        # Physics variables
         self.movement = 0
         self.gravity = 0.25
-        
-        # Load Default Skin (Yellow)
         self.set_skin('yellow')
-        
         self.rect = self.image.get_rect(center = (100, 512))
-        
-        # Animation timer
         self.ANIMATION_EVENT = pygame.USEREVENT + 1
         pygame.time.set_timer(self.ANIMATION_EVENT, 200)
 
+        # --- AI ATTRIBUTES ---
+        self.brain = None # TODO: Initialize NeuralNetwork() here
+        self.fitness = 0
+        self.alive = True
+
     def set_skin(self, color):
-        """Loads the bird assets based on the color string provided"""
         try:
-            # 1. Load the raw images first
             down = pygame.image.load(f'assets/{color}bird-downflap.png').convert_alpha()
             mid = pygame.image.load(f'assets/{color}bird-midflap.png').convert_alpha()
             up = pygame.image.load(f'assets/{color}bird-upflap.png').convert_alpha()
 
-            # 2. Check size. Original bird is tiny (~34px). 
-            # If the loaded image is small, scale it up (x2) for retro look.
-            # If it's already big (like the ghost might be), keep it as is.
             if down.get_width() < 45:
                 self.downflap = pygame.transform.scale2x(down)
                 self.midflap = pygame.transform.scale2x(mid)
@@ -44,39 +38,36 @@ class Bird:
                 self.upflap = up
 
             self.frames = [self.downflap, self.midflap, self.upflap]
-            
-            # Update current image immediately to avoid glitches
             self.image = self.frames[self.frame_index]
-            
         except FileNotFoundError:
-            print(f"Error: Could not find images for {color} skin. Make sure files exist in assets/ folder.")
+            print(f"Error: Could not find images for {color} skin.")
 
     def jump(self):
         self.movement = 0
         self.movement -= 8
         self.flap_sound.play()
 
+    def think(self, pipes):
+        # TODO: AI Logic
+        pass
+
     def move(self):
         self.movement += self.gravity
         self.rect.centery += self.movement
 
     def animate(self):
-        if self.frame_index < 2:
-            self.frame_index += 1
-        else:
-            self.frame_index = 0
-        
+        self.frame_index = (self.frame_index + 1) % 3
         self.image = self.frames[self.frame_index]
         self.rect = self.image.get_rect(center = (100, self.rect.centery))
 
     def draw(self, screen):
-        # Rotate bird
         rotated_bird = pygame.transform.rotozoom(self.image, -self.movement * 3, 1)
         screen.blit(rotated_bird, self.rect)
 
     def reset(self):
         self.rect.center = (100, 512)
         self.movement = 0
+        self.fitness = 0 
 
 class PipeManager:
     def __init__(self):
@@ -84,7 +75,6 @@ class PipeManager:
         self.surface = pygame.transform.scale2x(self.surface)
         self.heights = [400, 600, 800]
         self.pipes = []
-        
         self.SPAWN_EVENT = pygame.USEREVENT
         self.spawn_time = 900 
         pygame.time.set_timer(self.SPAWN_EVENT, self.spawn_time)
@@ -137,7 +127,6 @@ class Base:
 
 class Game:
     def __init__(self):
-        # Pygame Setup
         pygame.mixer.pre_init(frequency=44100, size=16, channels=1, buffer=512)
         pygame.init()
         self.screen = pygame.display.set_mode((576, 1024))
@@ -145,23 +134,19 @@ class Game:
         self.game_font = pygame.font.Font('04B_19.ttf', 40)
         self.menu_font = pygame.font.Font('04B_19.ttf', 30)
 
-        # Load Sounds
         self.sounds = {
             'flap': pygame.mixer.Sound('sound/sfx_wing.wav'),
             'death': pygame.mixer.Sound('sound/sfx_hit.wav'),
             'score': pygame.mixer.Sound('sound/sfx_point.wav')
         }
 
-        # Backgrounds
         self.bg_day = pygame.transform.scale2x(pygame.image.load('assets/background-day.png').convert())
         self.bg_night = pygame.transform.scale2x(pygame.image.load('assets/background-night.png').convert())
         self.current_bg = self.bg_day
 
-        # UI Assets
         self.game_over_surface = pygame.transform.scale2x(pygame.image.load('assets/message.png').convert_alpha())
         self.game_over_rect = self.game_over_surface.get_rect(center = (288, 512))
         
-        # Medals
         self.medals = {}
         try:
             self.medals['bronze'] = pygame.image.load('assets/medal_bronze.png').convert_alpha()
@@ -171,61 +156,61 @@ class Game:
         except FileNotFoundError:
             pass
 
-        # Menu Buttons
         self.btn_manual_rect = pygame.Rect(138, 400, 300, 60)
         self.btn_auto_rect = pygame.Rect(138, 500, 300, 60)
-        
-        # Skin Selection Arrows
         self.arrow_left_rect = pygame.Rect(180, 620, 50, 50)
         self.arrow_right_rect = pygame.Rect(346, 620, 50, 50)
 
-        # Initialize Classes
+        self.btn_pause_rect = pygame.Rect(20, 20, 50, 50)
+        self.btn_resume_rect = pygame.Rect(138, 400, 300, 60)
+        self.btn_menu_rect = pygame.Rect(138, 500, 300, 60)
+
         self.bird = Bird(self.sounds)
         self.pipe_manager = PipeManager()
         self.base = Base()
 
-        # State Variables
         self.state = 'menu'
         self.mode = 'manual'
+        self.paused = False
         self.score = 0
         self.high_score = 0
         
-        # Skin Selection
         self.available_skins = ['yellow', 'blue', 'red', 'ghost']
         self.current_skin_index = 0
 
+        # --- AI INITIALIZATION ---
+        # TODO: Initialize self.evolution = EvolutionManager(population_size=50)
+        # TODO: Initialize self.birds = [] 
+
     def check_collision(self):
-        for pipe in self.pipe_manager.pipes:
-            if self.bird.rect.colliderect(pipe):
-                self.sounds['death'].play()
+        if self.mode == 'manual':
+            for pipe in self.pipe_manager.pipes:
+                if self.bird.rect.colliderect(pipe):
+                    self.sounds['death'].play()
+                    return True
+            if self.bird.rect.top <= -100 or self.bird.rect.bottom >= 900:
                 return True
-        if self.bird.rect.top <= -100 or self.bird.rect.bottom >= 900:
-            return True
+            return False
+        # TODO: Auto Mode Collision
         return False
 
     def check_score(self):
-        for pipe in self.pipe_manager.pipes:
-            if pipe.centerx == 100:
-                self.score += 0.5
-                if int(self.score) == self.score:
-                    self.sounds['score'].play()
-                    self.update_background()
-                    if self.mode == 'manual':
+        if self.mode == 'manual':
+            for pipe in self.pipe_manager.pipes:
+                if pipe.centerx == 100:
+                    self.score += 0.5
+                    if int(self.score) == self.score:
+                        self.sounds['score'].play()
+                        self.update_background()
                         self.pipe_manager.update_difficulty(self.score)
+        # TODO: Auto Score
 
     def update_background(self):
-        # 1. CHECK SKIN: If Ghost, ALWAYS Night
-        current_skin = self.available_skins[self.current_skin_index]
-        if current_skin == 'ghost':
+        if self.available_skins[self.current_skin_index] == 'ghost':
             self.current_bg = self.bg_night
-            return # Skip the normal day/night logic
-
-        # 2. NORMAL LOGIC: Change every 10 points
+            return 
         period = int(self.score) // 10
-        if period % 2 == 0:
-            self.current_bg = self.bg_day
-        else:
-            self.current_bg = self.bg_night
+        self.current_bg = self.bg_day if period % 2 == 0 else self.bg_night
 
     def display_score(self):
         if self.state == 'playing':
@@ -257,10 +242,7 @@ class Game:
     def draw_arrow(self, direction, rect):
         color = (255, 255, 255)
         width = 6
-        if direction == 'left':
-            points = [(rect.right - 10, rect.top + 5), (rect.left + 10, rect.centery), (rect.right - 10, rect.bottom - 5)]
-        else:
-            points = [(rect.left + 10, rect.top + 5), (rect.right - 10, rect.centery), (rect.left + 10, rect.bottom - 5)]
+        points = [(rect.right-10, rect.top+5), (rect.left+10, rect.centery), (rect.right-10, rect.bottom-5)] if direction == 'left' else [(rect.left+10, rect.top+5), (rect.right-10, rect.centery), (rect.left+10, rect.bottom-5)]
         pygame.draw.lines(self.screen, color, False, points, width)
 
     def draw_menu(self):
@@ -268,56 +250,63 @@ class Game:
         title_rect = title_surf.get_rect(center=(288, 200))
         self.screen.blit(title_surf, title_rect)
 
-        # Buttons
         pygame.draw.rect(self.screen, (244, 158, 66), self.btn_manual_rect, border_radius=12)
         pygame.draw.rect(self.screen, (255, 255, 255), self.btn_manual_rect, 4, border_radius=12)
-        manual_text = self.menu_font.render("Manual Mode", True, (255, 255, 255))
-        manual_text_rect = manual_text.get_rect(center=self.btn_manual_rect.center)
-        self.screen.blit(manual_text, manual_text_rect)
+        manual_text = self.menu_font.render(f"Manual Mode (M)", True, (255, 255, 255)) # Added (M) hint
+        self.screen.blit(manual_text, manual_text.get_rect(center=self.btn_manual_rect.center))
 
         pygame.draw.rect(self.screen, (66, 173, 244), self.btn_auto_rect, border_radius=12)
         pygame.draw.rect(self.screen, (255, 255, 255), self.btn_auto_rect, 4, border_radius=12)
-        auto_text = self.menu_font.render("Autonomous Mode", True, (255, 255, 255))
-        auto_text_rect = auto_text.get_rect(center=self.btn_auto_rect.center)
-        self.screen.blit(auto_text, auto_text_rect)
+        auto_text = self.menu_font.render(f"Auto Mode (A)", True, (255, 255, 255)) # Added (A) hint
+        self.screen.blit(auto_text, auto_text.get_rect(center=self.btn_auto_rect.center))
         
-        # Skin Selection
         self.draw_arrow('left', self.arrow_left_rect)
         self.draw_arrow('right', self.arrow_right_rect)
 
         current_color_name = self.available_skins[self.current_skin_index]
         skin_text = self.menu_font.render(current_color_name.upper(), True, (255, 255, 255))
-        skin_text_rect = skin_text.get_rect(center=(288, 600))
-        self.screen.blit(skin_text, skin_text_rect)
+        self.screen.blit(skin_text, skin_text.get_rect(center=(288, 600)))
 
-        preview_rect = self.bird.image.get_rect(center=(288, 650))
-        self.screen.blit(self.bird.image, preview_rect)
+        self.screen.blit(self.bird.image, self.bird.image.get_rect(center=(288, 650)))
+
+    def draw_pause_menu(self):
+        s = pygame.Surface((576, 1024))
+        s.set_alpha(128)
+        s.fill((0,0,0))
+        self.screen.blit(s, (0,0))
+        
+        pygame.draw.rect(self.screen, (244, 158, 66), self.btn_resume_rect, border_radius=12)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.btn_resume_rect, 4, border_radius=12)
+        resume_text = self.menu_font.render("Resume (P)", True, (255, 255, 255))
+        self.screen.blit(resume_text, resume_text.get_rect(center=self.btn_resume_rect.center))
+
+        pygame.draw.rect(self.screen, (200, 60, 60), self.btn_menu_rect, border_radius=12)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.btn_menu_rect, 4, border_radius=12)
+        menu_text = self.menu_font.render("Main Menu", True, (255, 255, 255))
+        self.screen.blit(menu_text, menu_text.get_rect(center=self.btn_menu_rect.center))
 
     def change_skin(self, direction):
         if direction == 'next':
             self.current_skin_index = (self.current_skin_index + 1) % len(self.available_skins)
         else:
             self.current_skin_index = (self.current_skin_index - 1) % len(self.available_skins)
-            
-        new_skin = self.available_skins[self.current_skin_index]
-        self.bird.set_skin(new_skin)
-
-        # FORCE BACKGROUND UPDATE IMMEDIATELY IN MENU
-        if new_skin == 'ghost':
+        self.bird.set_skin(self.available_skins[self.current_skin_index])
+        if self.available_skins[self.current_skin_index] == 'ghost':
             self.current_bg = self.bg_night
         else:
             self.current_bg = self.bg_day
 
     def reset_game(self):
         self.state = 'playing'
+        self.paused = False
         self.pipe_manager.reset()
-        self.bird.reset()
         self.score = 0
         
-        # CHECK SKIN ON START
-        # If ghost, start Night. Else start Day.
-        current_skin = self.available_skins[self.current_skin_index]
-        if current_skin == 'ghost':
+        if self.mode == 'manual':
+            self.bird.reset()
+        # TODO: Auto Reset
+
+        if self.available_skins[self.current_skin_index] == 'ghost':
             self.current_bg = self.bg_night
         else:
             self.current_bg = self.bg_day
@@ -328,7 +317,24 @@ class Game:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                
+
+                # --- GLOBAL KEYBOARD SHORTCUTS ---
+                if event.type == pygame.KEYDOWN:
+                    # 'M' -> Switch to Manual Mode & Restart
+                    if event.key == pygame.K_m:
+                        self.mode = 'manual'
+                        self.reset_game()
+                    
+                    # 'A' -> Switch to Auto Mode & Restart
+                    if event.key == pygame.K_a:
+                        self.mode = 'auto'
+                        self.reset_game()
+
+                    # 'P' or 'ESC' -> Toggle Pause (Only if playing)
+                    if (event.key == pygame.K_p or event.key == pygame.K_ESCAPE) and self.state == 'playing':
+                        self.paused = not self.paused
+
+                # --- MOUSE EVENTS ---
                 if self.state == 'menu':
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if self.btn_manual_rect.collidepoint(event.pos):
@@ -344,27 +350,39 @@ class Game:
 
                 elif self.state == 'playing':
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_SPACE and self.mode == 'manual':
+                        if event.key == pygame.K_SPACE and self.mode == 'manual' and not self.paused:
                             self.bird.jump()
-                    if self.mode == 'auto':
-                        pass 
+
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if self.btn_pause_rect.collidepoint(event.pos):
+                            self.paused = not self.paused
+                        if self.paused:
+                            if self.btn_resume_rect.collidepoint(event.pos):
+                                self.paused = False
+                            elif self.btn_menu_rect.collidepoint(event.pos):
+                                self.state = 'menu'
+                                if self.available_skins[self.current_skin_index] == 'ghost':
+                                    self.current_bg = self.bg_night
+                                else:
+                                    self.current_bg = self.bg_day
+
+                    if not self.paused:
+                        if event.type == self.pipe_manager.SPAWN_EVENT:
+                            self.pipe_manager.create_pipe()
+                        if event.type == self.bird.ANIMATION_EVENT:
+                            if self.mode == 'manual':
+                                self.bird.animate()
 
                 elif self.state == 'game_over':
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_SPACE:
                             self.state = 'menu'
-                            # Ensure menu background is correct when returning
                             if self.available_skins[self.current_skin_index] == 'ghost':
                                 self.current_bg = self.bg_night
                             else:
                                 self.current_bg = self.bg_day
 
-                if event.type == self.pipe_manager.SPAWN_EVENT and self.state == 'playing':
-                    self.pipe_manager.create_pipe()
-
-                if event.type == self.bird.ANIMATION_EVENT:
-                    self.bird.animate()
-
+            # --- DRAWING ---
             self.screen.blit(self.current_bg, (0, 0))
 
             if self.state == 'menu':
@@ -372,18 +390,34 @@ class Game:
                 self.base.move()
 
             elif self.state == 'playing':
-                self.bird.move()
-                self.bird.draw(self.screen)
-                self.pipe_manager.move_pipes()
                 self.pipe_manager.draw(self.screen)
-                if self.check_collision():
-                    self.state = 'game_over'
-                self.check_score()
+                self.base.draw(self.screen)
+
+                if not self.paused:
+                    self.pipe_manager.move_pipes()
+                    self.base.move()
+                    self.check_score()
+                    if self.mode == 'manual':
+                        self.bird.move()
+                        self.bird.draw(self.screen)
+                        if self.check_collision():
+                            self.state = 'game_over'
+                    elif self.mode == 'auto':
+                        pass # TODO Auto Logic
+
+                if self.paused:
+                    if self.mode == 'manual': self.bird.draw(self.screen)
+                    self.draw_pause_menu()
+                else:
+                    # Draw small II button
+                    pygame.draw.rect(self.screen, (255, 255, 255), self.btn_pause_rect, 2, border_radius=5)
+                    pygame.draw.line(self.screen, (255,255,255), (35, 30), (35, 60), 4)
+                    pygame.draw.line(self.screen, (255,255,255), (55, 30), (55, 60), 4)
+
                 self.display_score()
-                self.base.move()
 
             elif self.state == 'game_over':
-                self.bird.draw(self.screen)
+                if self.mode == 'manual': self.bird.draw(self.screen)
                 self.pipe_manager.draw(self.screen)
                 self.base.draw(self.screen)
                 self.screen.blit(self.game_over_surface, self.game_over_rect)
