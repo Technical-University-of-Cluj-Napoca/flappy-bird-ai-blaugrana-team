@@ -1,18 +1,18 @@
 import random
 import copy
-# Ensure this import works in your project structure
+# Ensure this import matches your file name (neural_net.py)
 from neural_net import NeuralNetwork 
 
 class EvolutionManager:
     """
     Handles the population size, fitness calculation, and next generation.
-    Refer to PDF Section: 'The Natural Selection Process' [cite: 191]
+    Refer to PDF Section: 'The Natural Selection Process'
     """
     def __init__(self, population_size):
         self.population_size = population_size
         self.generation_count = 1
         self.species_list = {} # Dictionary to hold {species_id: [birds]}
-        # Threshold variable for Speciation [cite: 227]
+        # Threshold variable for Speciation
         self.compatibility_threshold = 0.5 
 
     def speciation(self, birds):
@@ -42,7 +42,7 @@ class EvolutionManager:
 
     def get_weight_difference(self, brain_a, brain_b):
         """
-        Helper to calculate the difference formula 
+        Helper to calculate the difference formula.
         """
         diff = 0
         for wa, wb in zip(brain_a.weights, brain_b.weights):
@@ -56,7 +56,7 @@ class EvolutionManager:
         # First, ensure birds are grouped
         self.speciation(birds)
 
-        # Calculate 'Species Fitness' (Average fitness of all birds in a species) [cite: 246]
+        # Calculate 'Species Fitness' (Average fitness of all birds in a species)
         for species_id, species_birds in self.species_list.items():
             total_fitness = sum(b.fitness for b in species_birds)
             avg_fitness = total_fitness / len(species_birds)
@@ -73,7 +73,7 @@ class EvolutionManager:
         new_birds = []
 
         # 1. SORTING
-        # Sort species by their fitness (Strongest species first) [cite: 251]
+        # Sort species by their fitness (Strongest species first)
         # We sort the dictionary keys based on the species_fitness of their first bird
         sorted_species = sorted(
             self.species_list.values(), 
@@ -83,13 +83,13 @@ class EvolutionManager:
 
         # 2. CHAMPION SELECTION
         for species_birds in sorted_species:
-            # Sort birds within each species by their individual fitness [cite: 251]
+            # Sort birds within each species by their individual fitness
             species_birds.sort(key=lambda b: b.fitness, reverse=True)
             
             # Identify the best bird (Champion) from each species
             champion = species_birds[0]
             
-            # Clone the Champion exactly (without mutation) [cite: 258]
+            # Clone the Champion exactly (without mutation)
             # We need a deep copy to ensure it's a new object
             champion_clone = copy.deepcopy(champion)
             champion_clone.reset() # Ensure score/movement is reset
@@ -106,7 +106,7 @@ class EvolutionManager:
             species = random.choice(sorted_species[:3]) # Pick from top 3 species
             parent = random.choice(species) # Pick a random parent from that species
             
-            # Clone and mutate [cite: 260]
+            # Clone and mutate
             child = copy.deepcopy(parent)
             child.reset()
             child.brain.mutate()
