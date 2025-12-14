@@ -1,4 +1,5 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import pygame, sys, random 
 
 def draw_floor():
@@ -73,6 +74,10 @@ def update_score(score, high_score):
 =======
 import pygame, sys, random, copy, os
 
+=======
+import pygame, sys, random, copy, os
+
+>>>>>>> Stashed changes
 # --- Import AI classes ---
 from neural_net import NeuralNetwork
 from genetic_alg import EvolutionManager
